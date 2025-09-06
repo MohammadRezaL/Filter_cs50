@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Effects Playground</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #ffffff;
+      color: #111;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .container {
+      max-width: 900px;
+      margin-top: 60px;
+      text-align: center;
+    }
+
+    h1 {
+      font-weight: 600;
+      margin-bottom: 25px;
+    }
+
+    .btn-custom {
+      border-radius: 50px;
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 15px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-custom:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    .canvas-wrapper {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+      transition: background-color 0.3s;
+    }
+
+    canvas {
+      max-width: 100%;
+      border-radius: 12px;
+    }
+
+    /* Dark mode */
+    .dark-mode {
+      background-color: #1a1a1a;
+      color: #f5f5f5;
+    }
+
+    .dark-mode .canvas-wrapper {
+      background-color: #2a2a2a;
+    }
+
+    .dark-mode .btn-custom {
+      background-color: #333 !important;
+      color: #f5f5f5 !important;
+      border: none;
+    }
+
+    /* Toggle switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 24px;
+      margin-left: 15px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.4s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #10a37f;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Image Effects Playground</h1>
+
+    <!-- Upload Button -->
+    <input type="file" id="imageInput" accept="image/*" hidden>
+    <label for="imageInput" class="btn btn-success btn-custom">Upload Image</label>
+
+    <!-- Buttons -->
+    <div class="mt-3">
+      <button id="applyBlurButton" class="btn btn-primary btn-custom">Blur</button>
+      <button id="applyGrayscaleButton" class="btn btn-primary btn-custom">Grayscale</button>
+      <button id="applyReflectButton" class="btn btn-primary btn-custom">Reflect</button>
+      <button id="applySepiaButton" class="btn btn-primary btn-custom">Sepia</button>
+    </div>
+
+    <!-- Download -->
+    <a id="downloadLink" class="btn btn-success btn-custom mt-3" style="display:none;">Download</a>
+
+    <!-- Dark mode toggle -->
+    <div class="mt-4">
+      <span>Dark Mode</span>
+      <label class="switch">
+        <input type="checkbox" id="darkModeToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-wrapper mt-4">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+  <!-- JS Filters -->
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const applyBlurButton = document.getElementById('applyBlurButton');
+    const applyGrayscaleButton = document.getElementById('applyGrayscaleButton');
+    const applyReflectButton = document.getElementById('applyReflectButton');
+    const applySepiaButton = document.getElementById('applySepiaButton');
+    const downloadLink = document.getElementById('downloadLink');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let image = new Image();
+
+    imageInput.addEventListener('change', handleImageUpload);
+    applyBlurButton.addEventListener('click', applyBlurAndDownload);
+    applyGrayscaleButton.addEventListener('click', applyGrayscaleAndDownload);
+    applyReflectButton.addEventListener('click', applyReflectAndDownload);
+    applySepiaButton.addEventListener('click', applySepiaAndDownload);
+
+    // Dark mode toggle
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    darkModeToggle.addEventListener('change', toggleDarkMode);
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+    }
+
+    // Auto dark mode if system preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      darkModeToggle.checked = true;
+      toggleDarkMode();
+    }
+
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          image.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    image.onload = function() {
+      canvas.width = image.width;
+      canvas.height = image.height;
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    };
+
+    function applyBlurAndDownload() {
+      if (!image.src) return;
+      canvas.width = image.width;
+      canvas.height = image.height;
+      ctx.drawImage(image, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const blurredData = applyBlur(imageData, 5);
+      ctx.putImageData(blurredData, 0, 0);
+      prepareDownload('modified_blur_image.jpg');
+    }
+
+    function applyGrayscaleAndDownload() {
+      if (!image.src) return;
+      canvas.width = image.width;
+      canvas.height = image.height;
+      ctx.drawImage(image, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const grayscaleData = applyGrayscale(imageData);
+      ctx.putImageData(grayscaleData, 0, 0);
+      prepareDownload('modified_grayscale_image.jpg');
+    }
+
+    function applyReflectAndDownload() {
+      if (!image.src) return;
+      canvas.width = image.width;
+      canvas.height = image.height;
+      ctx.drawImage(image, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const reflectedData = applyReflect(imageData);
+      ctx.putImageData(reflectedData, 0, 0);
+      prepareDownload('modified_reflect_image.jpg');
+    }
+
+    function applySepiaAndDownload() {
+      if (!image.src) return;
+      canvas.width = image.width;
+      canvas.height = image.height;
+      ctx.drawImage(image, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const sepiaData = applySepia(imageData);
+      ctx.putImageData(sepiaData, 0, 0);
+      prepareDownload('modified_sepia_image.jpg');
+    }
+
+    function prepareDownload(filename) {
+      const modifiedImageUrl = canvas.toDataURL('image/jpeg');
+      downloadLink.href = modifiedImageUrl;
+      downloadLink.style.display = 'inline-block';
+      downloadLink.download = filename;
+    }
+
+    function applyBlur(imageData, radius) {
+      const { data, width, height } = imageData;
+      const outputData = new Uint8ClampedArray(data.length);
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const pixelIndex = (y * width + x) * 4;
+          let avgR = 0, avgG = 0, avgB = 0, count = 0;
+
+          for (let j = -radius; j <= radius; j++) {
+            for (let i = -radius; i <= radius; i++) {
+              const currentX = x + i;
+              const currentY = y + j;
+              if (currentX >= 0 && currentX < width && currentY >= 0 && currentY < height) {
+                const currentIndex = (currentY * width + currentX) * 4;
+                avgR += data[currentIndex];
+                avgG += data[currentIndex + 1];
+                avgB += data[currentIndex + 2];
+                count++;
+              }
+            }
+          }
+          outputData[pixelIndex] = avgR / count;
+          outputData[pixelIndex + 1] = avgG / count;
+          outputData[pixelIndex + 2] = avgB / count;
+          outputData[pixelIndex + 3] = data[pixelIndex + 3];
+        }
+      }
+      return new ImageData(outputData, width, height);
+    }
+
+    function applyGrayscale(imageData) {
+      const { data, width, height } = imageData;
+      const outputData = new Uint8ClampedArray(data.length);
+      for (let i = 0; i < data.length; i += 4) {
+        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        outputData[i] = avg;
+        outputData[i + 1] = avg;
+        outputData[i + 2] = avg;
+        outputData[i + 3] = data[i + 3];
+      }
+      return new ImageData(outputData, width, height);
+    }
+
+    function applyReflect(imageData) {
+      const { data, width, height } = imageData;
+      const outputData = new Uint8ClampedArray(data.length);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const inputIndex = (y * width + x) * 4;
+          const outputIndex = ((height - y - 1) * width + x) * 4;
+          outputData[outputIndex] = data[inputIndex];
+          outputData[outputIndex + 1] = data[inputIndex + 1];
+          outputData[outputIndex + 2] = data[inputIndex + 2];
+          outputData[outputIndex + 3] = data[inputIndex + 3];
+        }
+      }
+      return new ImageData(outputData, width, height);
+    }
+
+    function applySepia(imageData) {
+      const { data, width, height } = imageData;
+      const outputData = new Uint8ClampedArray(data.length);
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        outputData[i] = Math.min(255, 0.272 * r + 0.534 * g + 0.131 * b);
+        outputData[i + 1] = Math.min(255, 0.349 * r + 0.686 * g + 0.168 * b);
+        outputData[i + 2] = Math.min(255, 0.393 * r + 0.769 * g + 0.189 * b);
+        outputData[i + 3] = data[i + 3];
+      }
+      return new ImageData(outputData, width, height);
+    }
+  </script>
+</body>
+</html>
